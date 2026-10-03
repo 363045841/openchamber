@@ -1,10 +1,12 @@
 import React from 'react';
-import type { Session } from '@opencode-ai/sdk/v2';
+import type { Session } from '@/lib/opencode/model';
 import { useSession } from '@/sync/sync-context';
 import { getBtwBoundaryMessageID, getBtwSessionID } from '@/lib/sessionBtwMetadata';
 import { useBtwStore } from '@/stores/useBtwStore';
 
 export type BtwPanelState = {
+  /** The session the composer is in — the one `/btw` would fork. */
+  parentSession: Session | null;
   /** The active fork for this parent, or null when no panel should exist. */
   btwSessionId: string | null;
   btwSession: Session | null;
@@ -14,6 +16,7 @@ export type BtwPanelState = {
   boundaryMessageID: string | null;
   collapsed: boolean;
   creating: boolean;
+  pending: boolean;
 };
 
 /**
@@ -40,6 +43,7 @@ export function useBtwPanelState(
   const destroying = Boolean(uiState?.destroying);
   const btwSessionId = btwSession && !destroying ? linkedBtwSessionId : null;
   return {
+    parentSession: parentSession ?? null,
     btwSessionId,
     btwSession: btwSessionId ? btwSession : null,
     // SAFETY: the SDK Session type omits the server's `directory` field; this
@@ -50,5 +54,6 @@ export function useBtwPanelState(
     boundaryMessageID: btwSessionId ? getBtwBoundaryMessageID(btwSession) : null,
     collapsed: Boolean(uiState?.collapsed),
     creating: Boolean(uiState?.creating),
+    pending: Boolean(uiState?.pending),
   };
 }

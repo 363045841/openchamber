@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useI18n } from '@/lib/i18n';
 import { resolveProjectContextId, type ProjectRef, type ProjectTodoItem } from '@/lib/projectContextApi';
 import { cn } from '@/lib/utils';
-import { useAgentMemoryStore } from '@/stores/useAgentMemoryStore';
+import { selectProjectMemoryForPath, useAgentMemoryStore } from '@/stores/useAgentMemoryStore';
 import { countHighlightedMemories, memoryViewKey } from '@/lib/agentMemoryBadges';
 import { EMPTY_PROJECT_CONTEXT_ENTRY, useProjectContextStore } from '@/stores/useProjectContextStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -29,8 +29,9 @@ interface ProjectNotesTodoPanelProps {
   canCreateWorktree?: boolean;
   onActionComplete?: () => void;
   /** When provided, opening a plan calls this instead of the desktop context
-      panel tab — hosts without ContextPanel (mobile) render their own viewer. */
-  onOpenPlan?: (plan: { id: string; title: string }) => void;
+      panel tab — hosts without ContextPanel (mobile) render their own viewer.
+      The plan carries its owner so the host's viewer cannot guess wrong. */
+  onOpenPlan?: (plan: { id: string; title: string; projectRef: ProjectRef }) => void;
   className?: string;
 }
 
@@ -133,7 +134,9 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
   const memoryDisabledByServer = useAgentMemoryStore((state) => state.disabled);
   const memoryVisible = memoryEnabled && !memoryDisabledByServer;
   const globalMemory = useAgentMemoryStore((state) => state.global);
-  const projectMemory = useAgentMemoryStore((state) => state.project);
+  const projectMemory = useAgentMemoryStore(
+    (state) => selectProjectMemoryForPath(state, projectRef?.path ?? null),
+  );
 
   const isMobile = useUIStore((state) => state.isMobile);
   const storedTab = useUIStore((state) => state.projectContextTab);
@@ -374,7 +377,7 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
           <button
             type="button"
             onClick={() => setOpenPlan(null)}
-            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-interactive-hover/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-interactive-hover/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={t('rightSidebar.contextNotesTodo.plans.actions.back')}
             title={t('rightSidebar.contextNotesTodo.plans.actions.back')}
           >
@@ -403,7 +406,7 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="absolute right-1.5 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-interactive-hover/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              className="absolute right-1.5 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-interactive-hover/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={t('rightSidebar.contextNotesTodo.search.clear')}
               title={t('rightSidebar.contextNotesTodo.search.clear')}
             >
@@ -433,7 +436,7 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   'flex flex-shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   isActive
                     ? 'border-transparent bg-interactive-active text-foreground'
                     : 'border-[var(--interactive-border)] text-muted-foreground',
@@ -499,10 +502,10 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
           />
         ) : null}
 
-        {activeTab === 'plans' && openPlan ? (
+        {activeTab === 'plans' && openPlan && projectRef ? (
           <React.Suspense fallback={null}>
             <PlanView
-              projectPlanId={openPlan.id}
+              savedProjectPlan={{ projectRef, planId: openPlan.id }}
               onNavigatedToChat={() => setOpenPlan(null)}
             />
           </React.Suspense>
@@ -538,7 +541,7 @@ export const ProjectNotesTodoPanel: React.FC<ProjectNotesTodoPanelProps> = ({
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   'flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   isActive
                     ? 'bg-interactive-active text-foreground'
                     : 'text-muted-foreground hover:bg-interactive-hover/50 hover:text-foreground',

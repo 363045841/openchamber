@@ -303,6 +303,19 @@ mock.module('@/lib/passkeys', () => ({
   registerCurrentDevicePasskey: mock(() => Promise.resolve(null)),
 }));
 
+const authSessionStore = {
+  state: 'ok' as const,
+  markAuthenticated: mock(() => undefined),
+};
+
+mock.module('@/lib/runtime-auth-expiry', () => ({
+  installAuthSessionFocusWatch: mock(() => undefined),
+  useAuthSessionStore: Object.assign(
+    (selector: (store: typeof authSessionStore) => unknown) => selector(authSessionStore),
+    { getState: () => authSessionStore },
+  ),
+}));
+
 const { SessionAuthGate } = await import('./SessionAuthGate');
 
 const flushEffects = async () => {
@@ -366,7 +379,7 @@ describe('SessionAuthGate status-check failure behavior', () => {
     expect(text).not.toContain('sessionAuth.locked.unlockTitle');
   });
 
-  test('keeps desktop-shell status-check rejection on the locked password prompt', async () => {
+  test('keeps desktop-shell status-check rejection on the error screen, never a guessed password prompt', async () => {
     resetHarness();
     desktopShell = true;
     runtimeFetchRejects = true;
@@ -374,8 +387,11 @@ describe('SessionAuthGate status-check failure behavior', () => {
     const tree = await renderGate();
     const text = collectText(tree);
 
-    expect(text).toContain('sessionAuth.locked.unlockTitle');
-    expect(text).not.toContain('sessionAuth.error.networkTitle');
+    expect(text).toContain('sessionAuth.error.networkTitle');
+    expect(text).not.toContain('sessionAuth.locked.unlockTitle');
+    // A network failure says nothing about the server, so the desktop error
+    // screen keeps its real escape hatches: retry and the host switcher.
+    expect(text).toContain('host-switcher');
   });
 
   test('discards a password completion after switching to another host', async () => {
